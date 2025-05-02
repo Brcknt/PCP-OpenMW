@@ -238,9 +238,50 @@ local function calculateHealthIncrease(attributes, isRetroactive, isStartRetroac
         attributes = getBaseAttributes()
     end
 
-    local levelHealth = calculateLevelHealth(attributes) * gainLevels
+    local levelHealth
     local startHealth
     local base
+    -- currently hardcoded, should add config at some point
+    local maxAttributeStep = 5
+
+    if isRetroactive then
+        levelHealth = 0
+        -- either endurance or weighted average, updated from startign value to current
+        local stepAttribute
+        -- the actual current value stepAttribute works towards
+        local currentAttribute
+        if healthSettings.isCustom then
+            stepAttribute = calculateWeightedAverage(getStartingAttributes())
+            currentAttribute = calculateWeightedAverage(attributes)
+        else
+            stepAttribute = getStartingAttributes().endurance
+            currentAttribute = attributes.endurance
+        end
+        local l = 0
+        -- for each level gained after 1.
+        -- if gainLevels is 1, we were level 1 and have reached level 2
+        while l < gainLevels do
+            -- increase attributes for this level
+            if stepAttribute + maxAttributeStep < currentAttribute then
+                stepAttribute = stepAttribute + maxAttributeStep
+            else
+                stepAttribute = currentAttribute
+            end
+            -- copied logic from calculateLevelHealth, so can use pretend values
+            local stepHealth
+            if healthSettings.isCustom then
+                stepHealth = stepAttribute * healthSettings.customGainMult
+            else
+                stepHealth = stepAttribute * levelHealthMult
+            end
+            levelHealth = levelHealth + stepHealth
+
+            l = l + 1
+        end
+    else
+        -- optherwise do it the normal cumulative way
+        levelHealth = calculateLevelHealth(attributes) * gainLevels
+    end
 
     if isRetroactive then
         startHealth = calculateStartHealth(isStartRetroactive, healthSettings.isCustom)
